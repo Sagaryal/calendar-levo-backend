@@ -9,15 +9,17 @@ class EventBase(BaseModel):
     end_time: datetime | None
     description: Optional[str] = None
     # participants: str
-    # user_id: int
 
 
 class EventCreate(EventBase):
-    user_id: int
-
-
-class EventUpdate(EventBase):
     pass
+
+
+class EventUpdate(BaseModel):
+    title: str | None = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    description: Optional[str] = None
 
 
 class Event(EventBase):

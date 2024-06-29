@@ -1,11 +1,9 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from app.events.schemas import Event
 
 
 class UserBase(BaseModel):
-    username: str
-    email: str
-    timezone: str
+    email: EmailStr
 
 
 class UserCreate(UserBase):

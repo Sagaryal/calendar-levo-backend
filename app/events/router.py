@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app import database
 from . import crud, schemas, models
+from app.users.models import User
+from app.dependencies import get_current_user
 
 # from app.celery.tasks import send_notification
 
@@ -9,11 +11,15 @@ router = APIRouter(prefix="/events", tags=["events"])
 
 
 @router.post("/", response_model=schemas.Event)
-def create_event(event: schemas.EventCreate, db: Session = Depends(database.get_db)):
+def create_event(
+    event: schemas.EventCreate,
+    db: Session = Depends(database.get_db),
+    current_user: User = Depends(get_current_user),
+):
     conflicting_event = (
         db.query(models.Event)
         .filter(
-            models.Event.user_id == event.user_id,
+            models.Event.user_id == current_user.id,
             models.Event.start_time < event.end_time,
             models.Event.end_time > event.start_time,
         )
@@ -36,7 +42,7 @@ def create_event(event: schemas.EventCreate, db: Session = Depends(database.get_
             },
         )
 
-    return crud.create_event(db, event)
+    return crud.create_event(db, event, current_user.id)
     # Schedule notification
     # send_notification.apply_async((db_event.title, db_event.start_time))
 
@@ -57,18 +63,41 @@ def read_event(event_id: int, db: Session = Depends(database.get_db)):
 
 @router.put("/{event_id}", response_model=schemas.Event)
 def update_event(
-    event_id: int, event: schemas.EventUpdate, db: Session = Depends(database.get_db)
+    event_id: int,
+    event: schemas.EventUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: User = Depends(get_current_user),
 ):
     db_event = crud.get_event(db, event_id)
     if db_event is None:
         raise HTTPException(status_code=404, detail="Event not found")
+
+    if db_event.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not authorized to update this event",
+        )
+
     return crud.update_event(db, db_event=db_event, event=event)
 
 
 @router.delete("/{event_id}")
-def delete_event(event_id: int, db: Session = Depends(database.get_db)):
+def delete_event(
+    event_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: User = Depends(get_current_user),
+):
     db_event = crud.get_event(db, event_id)
     if db_event is None:
-        raise HTTPException(status_code=404, detail="Event not found")
-    crud.delete_event(db_event)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Event not found"
+        )
+
+    if db_event.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not authorized to delete this event",
+        )
+
+    crud.delete_event(db, db_event)
     return {"message": f"Event {db_event.id} deleted successfully"}

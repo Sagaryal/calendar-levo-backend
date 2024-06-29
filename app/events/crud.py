@@ -10,8 +10,8 @@ def get_events(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Event).offset(skip).limit(limit).all()
 
 
-def create_event(db: Session, event: schemas.EventCreate):
-    db_event = models.Event(**event.model_dump())
+def create_event(db: Session, event: schemas.EventCreate, user_id: int):
+    db_event = models.Event(**event.model_dump(), user_id=user_id)
     db.add(db_event)
     db.commit()
     db.refresh(db_event)
