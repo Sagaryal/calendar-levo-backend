@@ -1,0 +1,16 @@
+**/dist/
+**/node_modules/
+**/Dockerfile*
+**/build/
+npm-debug.log
+docker-compose*
+.dockerignore
+.git
+.gitignore
+.cache
+*/bin
+*/obj
+README.md
+LICENSE
+.vscode
+*.db

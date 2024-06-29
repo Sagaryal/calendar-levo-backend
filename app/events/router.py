@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from pytz import utc
 from sqlalchemy.orm import Session
 from app import database
 from . import crud, schemas, models
 from app.users.models import User
 from app.dependencies import get_current_user
+from app.tasks import send_reminder_email
 
 # from app.celery.tasks import send_notification
 
@@ -42,9 +44,20 @@ def create_event(
             },
         )
 
-    return crud.create_event(db, event, current_user.id)
-    # Schedule notification
-    # send_notification.apply_async((db_event.title, db_event.start_time))
+    db_event = crud.create_event(db, event, current_user.id)
+    start_time = db_event.start_time
+    start_time_utc = utc.localize(start_time)
+
+    subject = f"Reminder: {db_event.title}"
+    body = f"This is a reminder that the event '{db_event.title}' is scheduled to start at {db_event.start_time}."
+    receipent_emails = [current_user.email]
+
+    # send_reminder_email.delay(subject, body, receipent_emails, start_time)
+    send_reminder_email.apply_async(
+        (subject, body, receipent_emails), eta=start_time_utc
+    )
+
+    return db_event
 
 
 @router.get("/", response_model=list[schemas.Event])
