@@ -7,12 +7,10 @@ from app.users.models import User
 from app.dependencies import get_current_user
 from app.tasks import send_reminder_email
 
-# from app.celery.tasks import send_notification
-
 router = APIRouter(prefix="/events", tags=["events"])
 
 
-@router.post("/", response_model=schemas.Event)
+@router.post("/create", response_model=schemas.Event)
 def create_event(
     event: schemas.EventCreate,
     db: Session = Depends(database.get_db),
@@ -45,22 +43,19 @@ def create_event(
         )
 
     db_event = crud.create_event(db, event, current_user.id)
-    start_time = db_event.start_time
-    start_time_utc = utc.localize(start_time)
+    start_time = utc.localize(db_event.start_time)
 
     subject = f"Reminder: {db_event.title}"
-    body = f"This is a reminder that the event '{db_event.title}' is scheduled to start at {db_event.start_time}."
+    body = f"This is a reminder that the event '{db_event.title}' is scheduled to start at {start_time} UTC."
     receipent_emails = [current_user.email]
 
     # send_reminder_email.delay(subject, body, receipent_emails, start_time)
-    send_reminder_email.apply_async(
-        (subject, body, receipent_emails), eta=start_time_utc
-    )
+    send_reminder_email.apply_async((subject, body, receipent_emails), eta=start_time)
 
     return db_event
 
 
-@router.get("/", response_model=list[schemas.Event])
+@router.get("/all", response_model=list[schemas.Event])
 def read_events(skip: int = 0, limit: int = 10, db: Session = Depends(database.get_db)):
     events = crud.get_events(db, skip=skip, limit=limit)
     return events
@@ -91,7 +86,17 @@ def update_event(
             detail="You are not authorized to update this event",
         )
 
-    return crud.update_event(db, db_event=db_event, event=event)
+    db_event = crud.update_event(db, db_event=db_event, event=event)
+    start_time = utc.localize(db_event.start_time)
+
+    subject = f"Reminder: {db_event.title}"
+    body = f"This is a reminder that the event '{db_event.title}' is scheduled to start at {start_time} UTC."
+    receipent_emails = [current_user.email]
+
+    # send_reminder_email.delay(subject, body, receipent_emails, start_time)
+    send_reminder_email.apply_async((subject, body, receipent_emails), eta=start_time)
+
+    return db_event
 
 
 @router.delete("/{event_id}")
