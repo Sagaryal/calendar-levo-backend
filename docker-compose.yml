@@ -3,8 +3,25 @@ version: "3"
 services:
   web:
     build: .
+    image: levo-calendar
     command: bash -c "uvicorn app.main:app --host 0.0.0.0 --port $PORT --reload"
     volumes:
-      - .:/code
+      - .:/app
     ports:
       - "$PORT:$PORT"
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+
+  worker:
+    image: levo-calendar
+    container_name: worker
+    restart: on-failure
+    command: "celery -A app.tasks worker --loglevel=info"
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+      - web
