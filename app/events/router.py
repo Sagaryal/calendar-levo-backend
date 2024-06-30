@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime
 from pytz import utc
 from sqlalchemy.orm import Session
 from app import database
@@ -44,13 +45,21 @@ def create_event(
 
     db_event = crud.create_event(db, event, current_user.id)
     start_time = utc.localize(db_event.start_time)
+    current_time = datetime.now(utc)
 
-    subject = f"Reminder: {db_event.title}"
-    body = f"This is a reminder that the event '{db_event.title}' is scheduled to start at {start_time} UTC."
-    receipent_emails = [current_user.email]
+    if start_time > current_time:
+        subject = f"Reminder: {db_event.title}"
+        body = f"This is a reminder that the event '{db_event.title}' is scheduled to start at {start_time} UTC."
+        receipent_emails = [current_user.email]
 
-    # send_reminder_email.delay(subject, body, receipent_emails, start_time)
-    send_reminder_email.apply_async((subject, body, receipent_emails), eta=start_time)
+        # send_reminder_email.delay(subject, body, receipent_emails, start_time)
+        send_reminder_email.apply_async(
+            (subject, body, receipent_emails), eta=start_time
+        )
+    else:
+        print(
+            "Start time is in past. Celery Task will not be executed. Email notification will not be sent."
+        )
 
     return db_event
 
@@ -88,13 +97,21 @@ def update_event(
 
     db_event = crud.update_event(db, db_event=db_event, event=event)
     start_time = utc.localize(db_event.start_time)
+    current_time = datetime.now(utc)
 
-    subject = f"Reminder: {db_event.title}"
-    body = f"This is a reminder that the event '{db_event.title}' is scheduled to start at {start_time} UTC."
-    receipent_emails = [current_user.email]
+    if start_time > current_time:
+        subject = f"Reminder: {db_event.title}"
+        body = f"This is a reminder that the event '{db_event.title}' is scheduled to start at {start_time} UTC."
+        receipent_emails = [current_user.email]
 
-    # send_reminder_email.delay(subject, body, receipent_emails, start_time)
-    send_reminder_email.apply_async((subject, body, receipent_emails), eta=start_time)
+        # send_reminder_email.delay(subject, body, receipent_emails, start_time)
+        send_reminder_email.apply_async(
+            (subject, body, receipent_emails), eta=start_time
+        )
+    else:
+        print(
+            "Start time is in past. Celery Task will not be executed. Email notification will not be sent."
+        )
 
     return db_event
 
