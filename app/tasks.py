@@ -1,5 +1,5 @@
-import datetime
 from app.mail import send_email
+import ssl
 
 from celery import Celery
 from app.config import settings
@@ -10,6 +10,8 @@ celery_app = Celery(
     "worker",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
+    broker_use_ssl={"ssl_cert_reqs": ssl.CERT_NONE},
+    redis_backend_use_ssl={"ssl_cert_reqs": ssl.CERT_NONE},
 )
 
 
